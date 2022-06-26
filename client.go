@@ -1,11 +1,13 @@
-package pkg
+package kubespecbuilder
 
 import (
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Client struct {
-	Labeler
 	KubeObjectBuilder
 }
 
@@ -25,19 +27,17 @@ func generateCommonLabels(labelSpec LabelSpec, extraLabels map[string]string) ma
 }
 
 func createObjectMeta(metadata Metadata, hasNameAndNamespace bool, extraLabels map[string]string) metav1.ObjectMeta {
-	labels := generateCommonLabels(metadata.CommonLabels, extraLabels)
-
-	metadata := metav1.ObjectMeta{
-		Labels:    generateCommonLabels(spec.CommonLabels, extraLabels),
-		Annotations: spec.Annotations,
+	objectMeta := metav1.ObjectMeta{
+		Labels:      generateCommonLabels(metadata.CommonLabels, extraLabels),
+		Annotations: metadata.Annotations,
 	}
 
 	if hasNameAndNamespace {
-		metadata.Name = spec.Metadata.Name
-		metadata.Namespace = spec.Metadata.Namespace
+		objectMeta.Name = metadata.Name
+		objectMeta.Namespace = metadata.Namespace
 	}
 
-	return metadata
+	return objectMeta
 }
 
 func createContainerPorts(ports []ContainerPortSpec) ([]corev1.ContainerPort, error) {
@@ -52,33 +52,42 @@ func createContainerPorts(ports []ContainerPortSpec) ([]corev1.ContainerPort, er
 		containerPorts = append(containerPorts, containerPort)
 	}
 
-	return containerPorts
+	return containerPorts, nil
 }
 
 func createContainers(containerSpecs []ContainerSpec) ([]corev1.Container, error) {
 	containers := []corev1.Container{}
 
 	for _, containerSpec := range containerSpecs {
-		ports, err := createContainerPorts(spec.Ports)
+		ports, err := createContainerPorts(containerSpec.Ports)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create container ports")
 		}
 
+		var envVars []corev1.EnvVar
+		for _, envVar := range containerSpec.Env {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  envVar.Name,
+				Value: envVar.Value,
+			})
+		}
+
 		container := corev1.Container{
-			Args:    spec.Args,
-			Command: spec.Command,
-			Env:     spec.Env,
-			Image:   spec.Image,
-			Name:    spec.Name,
-			Ports:  ports,
+			Args:    containerSpec.Args,
+			Command: containerSpec.Command,
+			Env:     envVars,
+			Image:   containerSpec.Image,
+			Name:    containerSpec.Name,
+			Ports:   ports,
 		}
 
 		containers = append(containers, container)
 	}
+
+	return containers, nil
 }
 
 func (l Client) CreateDeployment(spec DeploymentSpec) (appsv1.Deployment, error) {
-
 	containers, err := createContainers(spec.Containers)
 	if err != nil {
 		return appsv1.Deployment{}, errors.Wrap(err, "failed to create containers")
@@ -87,24 +96,25 @@ func (l Client) CreateDeployment(spec DeploymentSpec) (appsv1.Deployment, error)
 	return appsv1.Deployment{
 		ObjectMeta: createObjectMeta(spec.Metadata, true, nil),
 		Spec: appsv1.DeploymentSpec{
-			Replicas: spec.Replicas,
+			Replicas: &spec.Replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: generateCommonLabels(spec.CommonLabels, nil),
+				MatchLabels: generateCommonLabels(spec.Metadata.CommonLabels, nil),
 			},
 			Template: corev1.PodTemplateSpec{
-				Metadata: createObjectMeta(spec.Metadata, false, nil),
+				ObjectMeta: createObjectMeta(spec.Metadata, false, nil),
 				Spec: corev1.PodSpec{
 					ServiceAccountName: spec.ServiceAccount.Name,
-					Containers: containers,
-				}
-			}
+					Containers:         containers,
+				},
+			},
+		},
+	}, nil
+}
 
-		}
-	}
-
-
-func (l Client) CreateServiceAccount(spec ServiceAccountSpec) corev1.ServiceAccount {
-	return corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Metadata.Name,
-			Namespace: spec.Metadata.Namespace,
+func (l Client) CreateServiceAccount(spec ServiceAccountSpec) (corev1.ServiceAccount, error) {
+	//return corev1.ServiceAccount{
+	//	ObjectMeta: metav1.ObjectMeta{
+	//		Name:      spec.Metadata.Name,
+	//		Namespace: spec.Metadata.Namespace,
+	return corev1.ServiceAccount{}, errors.Errorf("not implemented")
+}

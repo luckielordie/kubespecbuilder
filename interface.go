@@ -1,4 +1,4 @@
-package pkg
+package kubespecbuilder
 
 import (
 	"fmt"
@@ -69,11 +69,12 @@ func (c *ContainerPortSpec) createPortSpec() (corev1.ContainerPort, error) {
 }
 
 type ContainerSpec struct {
-	Args    string    `json:"args"`
-	Command string    `json:"command"`
-	Env     []EnvVars `json:"env"`
-	Image   string    `json:"image"`
-	Name    string    `json:"name"`
+	Args    []string            `json:"args"`
+	Command []string            `json:"command"`
+	Env     []EnvVars           `json:"env"`
+	Image   string              `json:"image"`
+	Name    string              `json:"name"`
+	Ports   []ContainerPortSpec `json:"ports"`
 }
 
 type DeploymentSpec struct {
