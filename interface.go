@@ -1,8 +1,6 @@
 package kubespecbuilder
 
 import (
-	"fmt"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -38,36 +36,6 @@ type ContainerPortSpec struct {
 	IsHostPort bool   `json:"is-host-port"`
 	Protocol   string `json:"protocol"`
 }
-
-func contains(search string, array []string) bool {
-	for _, item := range array {
-		if item == search {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *ContainerPortSpec) createPortSpec() (corev1.ContainerPort, error) {
-	containerPort := corev1.ContainerPort{
-		Name: c.Name,
-	}
-
-	if c.IsHostPort {
-		containerPort.HostPort = int32(c.Port)
-	} else {
-		containerPort.ContainerPort = int32(c.Port)
-	}
-
-	if !contains(c.Protocol, []string{"TCP", "UDP", "SCTP"}) {
-		return corev1.ContainerPort{}, fmt.Errorf("invalid protocol: %s", c.Protocol)
-	}
-
-	containerPort.Protocol = corev1.Protocol(c.Protocol)
-
-	return containerPort, nil
-}
-
 type ContainerSpec struct {
 	Args    []string            `json:"args"`
 	Command []string            `json:"command"`
@@ -88,7 +56,12 @@ type ServiceAccountSpec struct {
 	Metadata Metadata `json:"metadata"`
 }
 
+type ServiceSpec struct {
+	Metadata Metadata `json:"metadata"`
+}
+
 type KubeObjectBuilder interface {
 	CreateDeployment(spec DeploymentSpec) (appsv1.Deployment, error)
-	CreateServiceAccount(spec ServiceAccountSpec) (corev1.ServiceAccount, error)
+	CreateServiceAccount(spec ServiceAccountSpec) corev1.ServiceAccount
+	CreateService(spec ServiceSpec) corev1.Service
 }

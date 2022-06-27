@@ -1,10 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 
 	"github.com/luckielordie/kubespecbuilder"
+	"gopkg.in/yaml.v2"
 )
 
 func main() {
@@ -36,16 +36,26 @@ func main() {
 					{Name: "ENV_VAR1", Value: "value1"},
 					{Name: "ENV_VAR2", Value: "value2"},
 				},
+				Ports: []kubespecbuilder.ContainerPortSpec{
+					{Name: "webserver", Port: 8080, Protocol: "TCP"},
+				},
 				Image: "some.domain/test-deployment:0.1.0",
 				Name:  "main",
 			},
 		},
 	}
 
-	jsonBytes, err := json.MarshalIndent(deploySpec, "", "  ")
+	client := kubespecbuilder.Client{}
+
+	spec, err := client.CreateDeployment(deploySpec)
 	if err != nil {
-		log.Fatalf("failed to marshal deployment spec: %v", err)
+		log.Fatalf("error creating deployment spec: %s", err)
 	}
 
-	log.Printf("%s", jsonBytes)
+	yamlBytes, err := yaml.Marshal(spec)
+	if err != nil {
+		log.Fatalf("error marshalling deployment spec: %s", err)
+	}
+
+	log.Printf("%s", yamlBytes)
 }

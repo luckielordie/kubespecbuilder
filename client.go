@@ -1,6 +1,8 @@
 package kubespecbuilder
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -9,6 +11,35 @@ import (
 
 type Client struct {
 	KubeObjectBuilder
+}
+
+func contains(search string, array []string) bool {
+	for _, item := range array {
+		if item == search {
+			return true
+		}
+	}
+	return false
+}
+
+func createPortSpec(containerPortSpec ContainerPortSpec) (corev1.ContainerPort, error) {
+	containerPort := corev1.ContainerPort{
+		Name: containerPortSpec.Name,
+	}
+
+	if containerPortSpec.IsHostPort {
+		containerPort.HostPort = int32(containerPortSpec.Port)
+	} else {
+		containerPort.ContainerPort = int32(containerPortSpec.Port)
+	}
+
+	if !contains(containerPortSpec.Protocol, []string{"TCP", "UDP", "SCTP"}) {
+		return corev1.ContainerPort{}, fmt.Errorf("invalid protocol: %s", containerPortSpec.Protocol)
+	}
+
+	containerPort.Protocol = corev1.Protocol(containerPortSpec.Protocol)
+
+	return containerPort, nil
 }
 
 func generateCommonLabels(labelSpec LabelSpec, extraLabels map[string]string) map[string]string {
@@ -44,7 +75,7 @@ func createContainerPorts(ports []ContainerPortSpec) ([]corev1.ContainerPort, er
 	containerPorts := []corev1.ContainerPort{}
 
 	for _, port := range ports {
-		containerPort, err := port.createPortSpec()
+		containerPort, err := createPortSpec(port)
 		if err != nil {
 			return nil, err
 		}
@@ -111,10 +142,8 @@ func (l Client) CreateDeployment(spec DeploymentSpec) (appsv1.Deployment, error)
 	}, nil
 }
 
-func (l Client) CreateServiceAccount(spec ServiceAccountSpec) (corev1.ServiceAccount, error) {
-	//return corev1.ServiceAccount{
-	//	ObjectMeta: metav1.ObjectMeta{
-	//		Name:      spec.Metadata.Name,
-	//		Namespace: spec.Metadata.Namespace,
-	return corev1.ServiceAccount{}, errors.Errorf("not implemented")
+func (l Client) CreateServiceAccount(spec ServiceAccountSpec) corev1.ServiceAccount {
+	return corev1.ServiceAccount{
+		ObjectMeta: createObjectMeta(spec.Metadata, true, nil),
+	}
 }
