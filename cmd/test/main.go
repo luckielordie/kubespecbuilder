@@ -3,25 +3,20 @@ package main
 import (
 	"log"
 
-	"github.com/luckielordie/kubespecbuilder"
+	kubespecbuilder "github.com/luckielordie/kubespecbuilder/pkg"
 	"gopkg.in/yaml.v2"
 )
 
 func main() {
 	deploySpec := kubespecbuilder.DeploymentSpec{
 		Metadata: kubespecbuilder.Metadata{
-			Name:      "test-deployment",
-			Namespace: "test-namespace",
-			CommonLabels: kubespecbuilder.LabelSpec{
-				Component: "main",
-				Name:      "test-deployment",
-				PartOf:    "test-deployment",
-				Version:   "0.1.0",
-				Extras: map[string]string{
-					"some.domain/value": "some-value",
-				},
-			},
+			Name:        "test-deployment",
+			Namespace:   "test-namespace",
+			Version:     "0.1.0",
 			Annotations: map[string]string{},
+			Labels: map[string]string{
+				"some.domain/value": "some-value",
+			},
 		},
 		Replicas: 2,
 		ServiceAccount: kubespecbuilder.ObjectRef{
@@ -37,7 +32,7 @@ func main() {
 					{Name: "ENV_VAR2", Value: "value2"},
 				},
 				Ports: []kubespecbuilder.ContainerPortSpec{
-					{Name: "webserver", Port: 8080, Protocol: "TCP"},
+					{Name: "webserver", Port: 8080, ServiceProtocol: "TCP"},
 				},
 				Image: "some.domain/test-deployment:0.1.0",
 				Name:  "main",
@@ -47,15 +42,12 @@ func main() {
 
 	client := kubespecbuilder.Client{}
 
-	spec, err := client.CreateDeployment(deploySpec)
-	if err != nil {
-		log.Fatalf("error creating deployment spec: %s", err)
-	}
+	client.CreateDeployment(deploySpec)
 
-	yamlBytes, err := yaml.Marshal(spec)
+	yamlBytes, err := yaml.Marshal(deploySpec)
 	if err != nil {
 		log.Fatalf("error marshalling deployment spec: %s", err)
 	}
 
-	log.Printf("%s", yamlBytes)
+	log.Printf("\n%s", yamlBytes)
 }
